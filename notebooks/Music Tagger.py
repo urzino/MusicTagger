@@ -105,7 +105,7 @@ def find_best_checkpoint(prev_chkpts):
 
 annotations_path = '../data/MagnaTagATune/annotation_reduced.csv'
 annotations = pd.read_csv(annotations_path, sep='\t')
-train_set, test_set = train_test_split(annotations['mp3_path'], train_size=0.0004, test_size=0.0003) 
+train_set, test_set = train_test_split(annotations['mp3_path'], train_size=0.5, test_size=0.3) 
 test_set, val_set = train_test_split(test_set, train_size=0.5, test_size=0.5) 
 #train_set= train_set.loc[train_set.str.len()<70]
 #test_set= test_set.loc[test_set.str.len()<70]
