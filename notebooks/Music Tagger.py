@@ -70,7 +70,10 @@ def ratio_wrong_over_correct_ones(y_true, y_pred):
 def ratio_correct_ones(y_true, y_pred):
     op1 = K.sum(K.cast(K.equal(y_true + K.round(y_pred),2.0),dtype='float32'))
     op2 = K.sum(K.cast(K.equal(y_true,1.0),dtype='float32'))
-    return op1/op2 
+    return op1/op2
+
+def custom_metric(y_true, y_pred):
+    return (1-ratio_correct_ones(y_true, y_pred))*1.5 + (ratio_wrong_over_correct_ones(y_true, y_pred))/1.5
     
 
 
@@ -82,10 +85,11 @@ def find_best_checkpoint(prev_chkpts):
     best_chkpt = ''
     best_epoch = 0
     for chkpt in prev_chkpts:
-        epoch = int(chkpt[8:11])   
-        correct_ratio = float(chkpt[12:18])        
-        wrong_ratio = float(chkpt[19:25])
-        ratio = (1-correct_ratio)*1.5 + (wrong_ratio)/1.5 #give more importance to correct predictions than wrong ones
+        epoch = int(chkpt[8:11])
+        ratio = float(chkpt[12:18])
+        #correct_ratio = float(chkpt[12:18])        
+        #wrong_ratio = float(chkpt[19:25])
+        #ratio = (1-correct_ratio)*1.5 + (wrong_ratio)/1.5 #give more importance to correct predictions than wrong ones
         if ratio < best_ratio:
             best_ratio = ratio
             best_chkpt = chkpt
@@ -101,7 +105,7 @@ def find_best_checkpoint(prev_chkpts):
 
 annotations_path = '../data/MagnaTagATune/annotation_reduced.csv'
 annotations = pd.read_csv(annotations_path, sep='\t')
-train_set, test_set = train_test_split(annotations['mp3_path'], train_size=0.4, test_size=0.3) 
+train_set, test_set = train_test_split(annotations['mp3_path'], train_size=0.0004, test_size=0.0003) 
 test_set, val_set = train_test_split(test_set, train_size=0.5, test_size=0.5) 
 #train_set= train_set.loc[train_set.str.len()<70]
 #test_set= test_set.loc[test_set.str.len()<70]
@@ -218,11 +222,11 @@ starting_decay = 1e-6
 
 # EarlyStopping Parameters
 min_improvement = 0
-patience = 10
+patience = 15
 
 # Directories
 checkpoint_dir = './checkpoints/'
-checkpoint_file_name = 'weights-{epoch:03d}-{val_ratio_correct_ones:.4f}-{val_ratio_wrong_over_correct_ones:.4f}.hdf5'
+checkpoint_file_name = 'weights-{epoch:03d}-{val_custom_metric:.4f}.hdf5'
 log_dir ='./logs'
 
 
@@ -234,12 +238,12 @@ callbacks = [keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0, batc
                                          embeddings_metadata=None),
             
             # Stop training if, after "patience" epochs, no one of the two val metrics has improved 
-            keras.callbacks.EarlyStopping(monitor='val_ratio_correct_ones', min_delta=min_improvement, patience=patience, verbose=1, mode='max'),
-            keras.callbacks.EarlyStopping(monitor='val_ratio_wrong_over_correct_ones', min_delta=min_improvement, patience=patience, verbose=1, mode='min'),
+            #keras.callbacks.EarlyStopping(monitor='val_ratio_correct_ones', min_delta=min_improvement, patience=patience, verbose=1, mode='max'),
+            keras.callbacks.EarlyStopping(monitor='val_custom_metric', min_delta=min_improvement, patience=patience, verbose=1, mode='min'),
             
             #Save model checkpoint if at least one of the two val metrics has improved
-            keras.callbacks.ModelCheckpoint(filepath=checkpoint_dir+checkpoint_file_name, monitor='val_ratio_correct_ones', mode='max', save_best_only=True, verbose=1),
-            keras.callbacks.ModelCheckpoint(filepath=checkpoint_dir+checkpoint_file_name, monitor='val_ratio_wrong_over_correct_ones', mode='min', save_best_only=True, verbose=1)]
+            #keras.callbacks.ModelCheckpoint(filepath=checkpoint_dir+checkpoint_file_name, monitor='val_ratio_correct_ones', mode='max', save_best_only=True, verbose=1),
+            keras.callbacks.ModelCheckpoint(filepath=checkpoint_dir+checkpoint_file_name, monitor='val_custom_metric', mode='min', save_best_only=True, verbose=1)]
 
 
 # In[ ]:
@@ -267,7 +271,7 @@ while (initial_epoch <= max_epochs) and (training_nr <= max_trainings):
     training_nr = training_nr + 1
     
     optimizer = SGD(lr = learning_rate, momentum = momentum, decay = decay , nesterov=True)
-    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=[ratio_wrong_over_correct_ones, ratio_correct_ones])
+    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=[ratio_wrong_over_correct_ones, ratio_correct_ones, custom_metric])
     
     
     if len(previous_checkpoints)!=0:
