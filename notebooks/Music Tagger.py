@@ -105,7 +105,7 @@ def find_best_checkpoint(prev_chkpts):
 
 annotations_path = '../data/MagnaTagATune/annotation_reduced.csv'
 annotations = pd.read_csv(annotations_path, sep='\t')
-train_set, test_set = train_test_split(annotations['mp3_path'], train_size=0.5, test_size=0.3) 
+train_set, test_set = train_test_split(annotations['mp3_path'], train_size=0.7, test_size=0.3) 
 test_set, val_set = train_test_split(test_set, train_size=0.5, test_size=0.5) 
 #train_set= train_set.loc[train_set.str.len()<70]
 #test_set= test_set.loc[test_set.str.len()<70]
@@ -216,13 +216,13 @@ max_epochs = 100
 max_trainings = 10
 
 # SGD parameters
-starting_learning_rate = 0.01
+starting_learning_rate = 0.1
 momentum = 0.9
-starting_decay = 1e-6
+starting_decay = 1e-5
 
 # EarlyStopping Parameters
 min_improvement = 0
-patience = 15
+patience = 10
 
 # Directories
 checkpoint_dir = './checkpoints/'
@@ -264,9 +264,13 @@ while (initial_epoch <= max_epochs) and (training_nr <= max_trainings):
         best_checkpoint, best_epoch = find_best_checkpoint(previous_checkpoints)
         initial_epoch = best_epoch      
        
-    if training_nr != 0:
+    if training_nr != 0:        
         decay = starting_decay ** training_nr
         learning_rate = starting_learning_rate - decay
+        if training_nr == 3:
+            starting_decay = 1e-6
+            starting_learning_rate = 0.01
+            
         
     training_nr = training_nr + 1
     
@@ -281,4 +285,89 @@ while (initial_epoch <= max_epochs) and (training_nr <= max_trainings):
                         validation_data = MagnaTagATuneSequence(val_set_paths, val_set_labels, batch_size),
                         epochs=max_epochs, callbacks = callbacks, initial_epoch = initial_epoch)
 
+
+# # Build test set
+
+# In[ ]:
+
+
+test_set_paths = test_set.values
+test_set_labels = annotations.loc[annotations['mp3_path'].isin(test_set)].drop(columns=['mp3_path','Unnamed: 0']).values
+test_set_size = len(test_set_paths)
+print("Test set size: {} ".format(test_set_size))
+
+
+# In[ ]:
+
+
+predictions = model.predict_generator(MagnaTagATuneSequence(train_set_paths, train_set, batch_size), verbose=1)
+
+
+# In[ ]:
+
+
+predictions[1]
+
+
+# In[ ]:
+
+
+import keras.backend as K
+acc_keras = np.mean(np.equal(train_set_labels, np.round(predictions)))
+print("Accuracy computed as Keras: {}".format(acc_keras))
+
+
+# In[ ]:
+
+
+m1 = np.array([[1,0,1],
+               [0,1,1],
+               [1,0,0]])
+m2 = np.array([[1,0,0],
+               [1,1,0],
+               [1,0,1]])
+
+
+# In[ ]:
+
+
+hamming_loss(m1,m2)
+
+
+# In[ ]:
+
+
+np.sum(np.logical_and(m1==m2, np.equal(m2,1)))/ np.sum(m1)
+
+
+# In[ ]:
+
+
+np.sum(np.logical_and(m1==m2, np.equal(m2,1)))
+
+
+# In[ ]:
+
+
+m1 = tf.Variable([[1,0,1],
+               [0,1,1],
+               [1,0,0]],dtype='float32')
+
+m2 = tf.Variable([[1,0,1],
+               [0,1,1],
+               [1,0,1]], dtype='float32')
+def sign_accuracy(y_true, y_pred):
+    return K.mean(K.greater(y_true * y_pred, 0.), axis=-1)
+
+
+# In[ ]:
+
+
+acc = K.eval(hamming_loss(m1, m2))
+
+
+# In[ ]:
+
+
+acc
 
