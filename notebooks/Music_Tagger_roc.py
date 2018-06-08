@@ -77,7 +77,7 @@ def ratio_correct_ones(y_true, y_pred):
 
 def auc_roc_metric(y_true, y_pred):
     # any tensorflow metric
-    value, update_op = tf.contrib.metrics.streaming_auc(y_pred, y_true)
+    value, update_op = tf.metrics.auc(y_true, y_pred)
 
     # find all variables created for this metric
     metric_vars = [i for i in tf.local_variables() if 'auc_roc' in i.name.split('/')[1]]
@@ -219,14 +219,6 @@ model.add(Dense(units=y_dimension, activation='sigmoid'))
 model.summary()
 
 
-# ###### Parallel GPUs computation
-
-# In[ ]:
-
-
-model = keras.utils.multi_gpu_model(model, gpus=2)
-
-
 # ###### Parameters
 
 # In[ ]:
@@ -257,7 +249,60 @@ log_dir ='./logs'
 # In[ ]:
 
 
-callbacks = [keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0, batch_size=batch_size, write_graph=True,
+class MyCallBack(keras.callbacks.Callback):
+    def __init__(self, callbacks,model):
+            super().__init__()
+            self.callback = callbacks
+            self.model = model
+            self.model_original = model
+
+    def on_epoch_begin(self,epoch,logs=None):
+            self.model = self.model_original
+            self.callback.on_epoch_begin(epoch, logs=logs)
+
+    def on_epoch_end(self,epoch,logs=None):
+            self.model = self.model_original
+            self.callback.on_epoch_end(epoch, logs=logs)
+
+    def on_batch_end(self, batch, logs=None):
+            self.model = self.model_original
+            self.callback.on_batch_end(batch, logs=logs)
+
+    def on_batch_begin(self, batch, logs=None):
+            self.model = self.model_original
+            self.callback.on_batch_begin(batch, logs=logs)
+
+    def on_train_begin(self, logs=None):
+            self.model = self.model_original
+            self.callback.set_model(self.model)
+            self.callback.on_train_begin(logs=logs)
+
+    def on_train_end(self, logs=None):
+            self.model = self.model_original
+            self.callback.on_train_end(logs=logs)
+
+cbk_tb = keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0, batch_size=batch_size, write_graph=True,
+                                         write_grads=False, write_images=False, embeddings_freq=0,
+                                         embeddings_layer_names=None, embeddings_metadata=None)
+
+cbk_es = keras.callbacks.EarlyStopping(monitor='val_auc_roc_metric', mode='max',
+                                          min_delta=min_improvement, patience=patience, verbose=1)
+
+cbk_mc = keras.callbacks.ModelCheckpoint(monitor='val_auc_roc_metric', mode='max', save_best_only=True, 
+                                            filepath=checkpoint_dir+checkpoint_file_name, 
+                                            verbose=1)
+
+cbk = MyCallBack(cbk_tb, model)
+cbk1 = MyCallBack(cbk_es, model)
+cbk2 = MyCallBack(cbk_mc, model)
+
+callbacks = [cbk,cbk1,cbk2]
+
+
+# In[ ]:
+
+
+'''callbacks = [keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0, batch_size=batch_size, write_graph=True,
                                          write_grads=False, write_images=False, embeddings_freq=0,
                                          embeddings_layer_names=None, embeddings_metadata=None),
             
@@ -267,7 +312,8 @@ callbacks = [keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0, batc
             
             #Save model checkpoint if at least one of the two val metrics has improved            
             keras.callbacks.ModelCheckpoint(monitor='val_auc_roc_metric', mode='max', save_best_only=True, 
-                                            filepath=checkpoint_dir+checkpoint_file_name, verbose=1)]
+                                            filepath=checkpoint_dir+checkpoint_file_name, 
+                                            verbose=1)]'''
 
 
 # ###### Training
@@ -280,6 +326,8 @@ training_nr = 0
 
 decay = starting_decay
 learning_rate = starting_learning_rate
+
+parallel_model = keras.utils.multi_gpu_model(model, gpus=2)
 
 while (initial_epoch <= max_epochs) and (training_nr <= max_trainings):
     print('\n\n* * * * Starting training {0} from epoch {1} * * * * \n\n'.format(training_nr,  initial_epoch+1))
@@ -302,14 +350,20 @@ while (initial_epoch <= max_epochs) and (training_nr <= max_trainings):
     training_nr = training_nr + 1
     
     optimizer = SGD(lr = learning_rate, momentum = momentum, decay = decay , nesterov=True)
-    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=[ratio_correct_ones,
+    parallel_model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=[ratio_correct_ones,
                                                                             ratio_wrong_over_correct_ones,
                                                                             auc_roc_metric]) 
     
     if len(previous_checkpoints)!=0:
         model.load_weights(checkpoint_dir + best_checkpoint)
+        parallel_model = keras.utils.multi_gpu_model(model, gpus=2)
+    
+    
+    parallel_model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=[ratio_correct_ones,
+                                                                            ratio_wrong_over_correct_ones,
+                                                                            auc_roc_metric]) 
 
-    model.fit_generator(MagnaTagATuneSequence(train_set_paths, train_set_labels, batch_size),
+    parallel_model.fit_generator(MagnaTagATuneSequence(train_set_paths, train_set_labels, batch_size),
                         validation_data = MagnaTagATuneSequence(val_set_paths, val_set_labels, batch_size),
                         epochs=max_epochs, callbacks = callbacks, initial_epoch = initial_epoch)
 
