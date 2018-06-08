@@ -211,7 +211,7 @@ model.summary()
 
 
 #Training Parameters
-batch_size = 10
+batch_size = 128
 max_epochs = 100
 max_trainings = 10
 
