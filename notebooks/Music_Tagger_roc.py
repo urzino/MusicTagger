@@ -354,34 +354,3 @@ try:
 except ValueError:
     print('ERROR ON TEST ROC')
 
-
-# In[ ]:
-
-
-fpr = dict()
-tpr = dict()
-roc_auc = dict()
-for i in range(test_set_labels.shape[1]):
-    fpr[i], tpr[i], _ = roc_curve(test_set_labels[:, i], predictions[:, i])
-    roc_auc[i] = auc(fpr[i], tpr[i])
-    
-    
-fpr["micro"], tpr["micro"], _ = roc_curve(test_set_labels.ravel(), predictions.ravel())
-roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
-
-
-
-plt.figure()
-lw = 3
-label = 18
-plt.plot(fpr[label], tpr[label], color='darkorange',
-         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[label])
-plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
-plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.05])
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.title('Receiver operating characteristic example')
-plt.legend(loc="lower right")
-plt.show()
-
