@@ -224,8 +224,11 @@ model.summary()
 # In[ ]:
 
 
+#Hardware Parameters
+n_gpus = 4
+
 #Training Parameters
-batch_size = 40
+batch_size = 20
 max_epochs = 100
 max_trainings = 10
 
@@ -327,7 +330,7 @@ training_nr = 0
 decay = starting_decay
 learning_rate = starting_learning_rate
 
-parallel_model = keras.utils.multi_gpu_model(model, gpus=4)
+parallel_model = keras.utils.multi_gpu_model(model, gpus=n_gpus)
 
 while (initial_epoch <= max_epochs) and (training_nr <= max_trainings):
     print('\n\n* * * * Starting training {0} from epoch {1} * * * * \n\n'.format(training_nr,  initial_epoch+1))
@@ -353,7 +356,7 @@ while (initial_epoch <= max_epochs) and (training_nr <= max_trainings):
     
     if len(previous_checkpoints)!=0:
         model.load_weights(checkpoint_dir + best_checkpoint)
-        parallel_model = keras.utils.multi_gpu_model(model, gpus=4)
+        parallel_model = keras.utils.multi_gpu_model(model, gpus=n_gpus)
     
     
     parallel_model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=[ratio_correct_ones,
@@ -385,6 +388,7 @@ print("Test set size: {} ".format(test_set_size))
 
 previous_checkpoints = os.listdir(checkpoint_dir)
 best_checkpoint, best_epoch = find_best_checkpoint(previous_checkpoints)
+parallel_model = keras.utils.multi_gpu_model(model, gpus=n_gpus)
 model.load_weights(checkpoint_dir + best_checkpoint)
 
 
@@ -393,7 +397,7 @@ model.load_weights(checkpoint_dir + best_checkpoint)
 # In[ ]:
 
 
-predictions = model.predict_generator(MagnaTagATuneSequence(test_set_paths, test_set, batch_size), verbose=1)
+predictions = parallel_model.predict_generator(MagnaTagATuneSequence(test_set_paths, test_set, batch_size), verbose=1)
 
 
 # In[ ]:
@@ -404,5 +408,6 @@ try:
     print("Test roc auc result: {} ".format(roc_auc))
 except ValueError:
     print('ERROR ON TEST ROC')
+
 
 
