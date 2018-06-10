@@ -243,7 +243,7 @@ patience = 10
 
 # Directories
 checkpoint_dir = './checkpoints_2/'
-checkpoint_file_name = 'weights-{epoch:03d}-{val_auc_roc_metric:.5f}.hdf5'
+checkpoint_file_name = 'weights-{epoch:03d}-{val_auc_roc:.5f}.hdf5'
 log_dir ='./logs'
 
 
