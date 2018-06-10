@@ -75,7 +75,7 @@ def ratio_correct_ones(y_true, y_pred):
     op2 = K.sum(K.cast(K.equal(y_true,1.0),dtype='float32'))
     return op1/op2
 
-def auc_roc_metric(y_true, y_pred):
+def auc_roc(y_true, y_pred):
     # any tensorflow metric
     value, update_op = tf.metrics.auc(y_true, y_pred)
 
@@ -229,7 +229,7 @@ n_gpus = 4
 
 #Training Parameters
 batch_size = 20
-max_epochs = 100
+max_epochs = 200
 max_trainings = 10
 
 # SGD parameters
@@ -288,10 +288,10 @@ cbk_tb = keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0, batch_si
                                          write_grads=False, write_images=False, embeddings_freq=0,
                                          embeddings_layer_names=None, embeddings_metadata=None)
 
-cbk_es = keras.callbacks.EarlyStopping(monitor='val_auc_roc_metric', mode='max',
+cbk_es = keras.callbacks.EarlyStopping(monitor='val_auc_roc', mode='max',
                                           min_delta=min_improvement, patience=patience, verbose=1)
 
-cbk_mc = keras.callbacks.ModelCheckpoint(monitor='val_auc_roc_metric', mode='max', save_best_only=True, 
+cbk_mc = keras.callbacks.ModelCheckpoint(monitor='val_auc_roc', mode='max', save_best_only=True, 
                                             filepath=checkpoint_dir+checkpoint_file_name, 
                                             verbose=1)
 
@@ -310,11 +310,11 @@ callbacks = [cbk,cbk1,cbk2]
                                          embeddings_layer_names=None, embeddings_metadata=None),
             
             # Stop training if, after "patience" epochs, no one of the two val metrics has improved            
-            keras.callbacks.EarlyStopping(monitor='val_auc_roc_metric', mode='max',
+            keras.callbacks.EarlyStopping(monitor='val_auc_roc', mode='max',
                                           min_delta=min_improvement, patience=patience, verbose=1, ),
             
             #Save model checkpoint if at least one of the two val metrics has improved            
-            keras.callbacks.ModelCheckpoint(monitor='val_auc_roc_metric', mode='max', save_best_only=True, 
+            keras.callbacks.ModelCheckpoint(monitor='val_auc_ro', mode='max', save_best_only=True, 
                                             filepath=checkpoint_dir+checkpoint_file_name, 
                                             verbose=1)]'''
 
@@ -352,7 +352,7 @@ while (initial_epoch <= max_epochs) and (training_nr <= max_trainings):
     optimizer = SGD(lr = learning_rate, momentum = momentum, decay = decay , nesterov=True)
     parallel_model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=[ratio_correct_ones,
                                                                             ratio_wrong_over_correct_ones,
-                                                                            auc_roc_metric]) 
+                                                                            auc_roc]) 
     
     if len(previous_checkpoints)!=0:
         model.load_weights(checkpoint_dir + best_checkpoint)
@@ -361,7 +361,7 @@ while (initial_epoch <= max_epochs) and (training_nr <= max_trainings):
     
     parallel_model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=[ratio_correct_ones,
                                                                             ratio_wrong_over_correct_ones,
-                                                                            auc_roc_metric]) 
+                                                                            auc_roc]) 
 
     parallel_model.fit_generator(MagnaTagATuneSequence(train_set_paths, train_set_labels, batch_size),
                         validation_data = MagnaTagATuneSequence(val_set_paths, val_set_labels, batch_size),
@@ -408,6 +408,5 @@ try:
     print("Test roc auc result: {} ".format(roc_auc))
 except ValueError:
     print('ERROR ON TEST ROC')
-
 
 
