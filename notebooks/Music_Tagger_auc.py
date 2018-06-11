@@ -325,7 +325,7 @@ callbacks = [cbk,cbk1,cbk2]
 
 
 initial_epoch = 0
-training_nr = 0
+training_nr = 2
 
 decay = starting_decay
 learning_rate = starting_learning_rate
