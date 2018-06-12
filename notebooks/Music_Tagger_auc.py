@@ -157,8 +157,8 @@ def find_best_checkpoint(prev_chkpts):
 annotations = pd.read_csv(annotations_path, sep='\t')
 t_size = 0.71774
 
-train_set, test_set = train_test_split(annotations['mp3_path'], train_size=t_size, test_size=(1-t_size)) 
-test_set, val_set = train_test_split(test_set, train_size=0.75, test_size=0.25) 
+train_set, test_set = train_test_split(annotations['mp3_path'], train_size=t_size, test_size=(1-t_size), random_state=0) 
+test_set, val_set = train_test_split(test_set, train_size=0.75, test_size=0.25, random_state=0) 
 #train_set= train_set.loc[train_set.str.len()<70]
 #test_set= test_set.loc[test_set.str.len()<70]
 
