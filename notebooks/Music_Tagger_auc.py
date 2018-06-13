@@ -313,11 +313,6 @@ class MyCallBack(keras.callbacks.Callback):
             self.callback.set_model(self.model)
             self.callback.on_train_begin(logs=logs)
 
-    def on_train_end(self, logs=None):
-            if not self.is_tb:
-                self.model = self.model_original
-            self.callback.on_train_end(logs=logs)
-
 cbk_tb = keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0, batch_size=batch_size, write_graph=True,
                                          write_grads=False, write_images=False, embeddings_freq=0,
                                          embeddings_layer_names=None, embeddings_metadata=None)
@@ -342,7 +337,7 @@ callbacks = [cbk,cbk_es,cbk2]
 
 
 initial_epoch = 0
-training_nr = 1
+training_nr = 2
 
 parallel_model = keras.utils.multi_gpu_model(model, gpus=n_gpus)
 
