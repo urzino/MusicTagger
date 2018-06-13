@@ -330,10 +330,10 @@ cbk_mc = keras.callbacks.ModelCheckpoint(monitor='val_loss', mode='min', save_be
                                             verbose=1)
 
 cbk = MyCallBack(cbk_tb, model, is_tb=True)
-cbk1 = MyCallBack(cbk_es, model)
+#cbk1 = MyCallBack(cbk_es, model)
 cbk2 = MyCallBack(cbk_mc, model)
 
-callbacks = [cbk,cbk1,cbk2]
+callbacks = [cbk,cbk_es,cbk2]
 
 
 # ### Training
@@ -342,7 +342,7 @@ callbacks = [cbk,cbk1,cbk2]
 
 
 initial_epoch = 0
-training_nr = 0
+training_nr = 1
 
 parallel_model = keras.utils.multi_gpu_model(model, gpus=n_gpus)
 
