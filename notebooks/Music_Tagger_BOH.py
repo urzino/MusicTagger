@@ -54,13 +54,13 @@ local_decay = 1e-6
 
 # EarlyStopping Parameters
 min_improvement = 0
-patience = 5
+patience = 7
 
 # Paths
 dataset_dir = '../data/MagnaTagATune/rawwav_2/'
 annotations_path = '../data/MagnaTagATune/annotation_reduced.csv'
 
-checkpoint_dir = './checkpoints_3/'
+checkpoint_dir = './checkpoints_4/'
 checkpoint_file_name = 'weights-{epoch:03d}-{val_loss:.5f}.hdf5'
 log_dir ='./logs_2'
 
