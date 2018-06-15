@@ -44,7 +44,7 @@ n_gpus = 4
 batch_size = 32
 max_epochs = 200
 max_trainings = 5
-max_resorts = 5
+max_resorts = 2
 kernel_initializer = 'glorot_uniform'#'he_uniform'
 
 # SGD parameters
@@ -59,11 +59,11 @@ patience = 5
 
 # Paths
 dataset_dir = '../data/MagnaTagATune/rawwav_2/'
-annotations_path = '../data/MagnaTagATune/annotation_reduced.csv'
+annotations_path = '../data/MagnaTagATune/annotation_top_50.csv'
 
-checkpoint_dir = './checkpoints_3/'
+checkpoint_dir = './checkpoints_7/'
 checkpoint_file_name = 'weights-{epoch:03d}-{val_loss:.5f}.hdf5'
-log_dir ='./logs'
+log_dir ='./logs_7'
 
 
 # # Functions
@@ -158,7 +158,7 @@ def find_best_checkpoint(prev_chkpts):
 annotations = pd.read_csv(annotations_path, sep='\t')
 
 tot_t_size = 0.866203
-tot_train_set, test_set = train_test_split(annotations['mp3_path'], train_size=tot_t_size, test_size=(1-tot_t_size), random_state=42) 
+tot_train_set, test_set = train_test_split(annotations['mp3_path'], train_size=tot_t_size, test_size=(1-tot_t_size), random_state=1) 
 
 print("Complete Train set size: {}".format(tot_train_set.shape[0]))
 print("Test set size: {} \n".format(test_set.shape[0]))
@@ -378,11 +378,12 @@ while (initial_epoch <= max_epochs) and (training_nr <= max_trainings):
     optimizer = SGD(lr=learning_rate, momentum=momentum, decay=local_decay , nesterov=True)
     
     if len(previous_checkpoints)!=0:
-        model.load_weights(checkpoint_dir + best_checkpoint)
+        #model.load_weights(checkpoint_dir + best_checkpoint)
+        model = keras.models.load_model(checkpoint_dir + best_checkpoint)
         parallel_model = keras.utils.multi_gpu_model(model, gpus=n_gpus)
     
     
-    parallel_model.compile(optimizer=optimizer, loss='binary_crossentropy',)
+    parallel_model.compile(optimizer=optimizer, loss='binary_crossentropy')
     
     parallel_model.fit_generator(MagnaTagATuneSequence(train_set_paths, train_set_labels, batch_size),
                                 #validation_data = MagnaTagATuneSequence(val_set_paths, val_set_labels, batch_size),
@@ -395,7 +396,7 @@ while (initial_epoch <= max_epochs) and (training_nr <= max_trainings):
 # In[ ]:
 
 
-test_set_paths = test_set.values
+test_set_paths = tot_train_set.values
 test_set_labels = annotations.loc[annotations['mp3_path'].isin(test_set)].drop(columns=['mp3_path','Unnamed: 0']).values
 test_set_size = len(test_set_paths)
 print("Test set size: {} ".format(test_set_size))
@@ -439,4 +440,56 @@ except ValueError:
     print('ERROR ON TEST ROC')
 
 
+# In[ ]:
+
+
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+for i in range(test_set_labels.shape[1]):
+    fpr[i], tpr[i], _ = roc_curve(test_set_labels[:, i], predictions[:, i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
+    
+    
+fpr["micro"], tpr["micro"], _ = roc_curve(test_set_labels.ravel(), predictions.ravel())
+roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+
+
+
+plt.figure()
+lw = 3
+label = 25
+plt.plot(fpr[label], tpr[label], color='darkorange',
+         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[label])
+plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic example')
+plt.legend(loc="lower right")
+plt.show()
+
+
+# In[ ]:
+
+
+test = predictions[0]
+print("All the same: {}".format(all([all(i) for i in [test-i<np.finfo(np.float32).eps for i in predictions]])))
+
+
+# In[ ]:
+
+
+a=500
+print(predictions[a])
+print(test_set_labels[a])
+
+
+# In[ ]:
+
+
+import math
+weights = np.concatenate([ i.flatten() for i in model.get_weights() ])
+print('Are there NaN weights? {}'.format(any([ math.isnan(i) for i in weights])))
 
