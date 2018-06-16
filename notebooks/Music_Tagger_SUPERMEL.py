@@ -46,13 +46,16 @@ n_gpus = 4
 #Mel parameters
 sr = 22050
 n_sample_fft = 2048 
-hop_length = 1024
+hop_length = 512
 
 #Training Parameters
 batch_size = 32
 max_epochs = 200
 max_trainings = 5
 kernel_initializer = 'glorot_uniform'#'he_uniform'
+
+if batch_size % n_gpus != 0:
+    print("Batch size should be dividibile per n_gpus")
 
 # SGD parameters
 starting_learning_rate = 0.01
@@ -65,15 +68,25 @@ min_improvement = 0
 patience = 5
 
 # Paths
-dataset_dir = '../data/MagnaTagATune/MEL/'
-annotations_path = '../data/MagnaTagATune/annotation_top_50.csv'
+dataset_dir = '../data/MagnaTagATune/MEL_default_hop/'
+annotations_path = '../data/MagnaTagATune/annotation_reduced_50.csv'
 
 checkpoint_dir = './checkpoints_MEL/'
 checkpoint_file_name = 'weights-{epoch:03d}-{val_loss:.5f}.hdf5'
-log_dir ='./logs_MEL'
+log_dir ='./logs_MEL/'
 
 
 # # Functions
+
+# ###### Align dataset split to batch size
+
+# In[1]:
+
+
+def align_split(split, batch_size, num_songs):
+    num_songs_split = split*num_songs
+    return int(num_songs_split - num_songs_split%batch_size)/num_songs
+
 
 # ###### Data reading during training
 
@@ -82,12 +95,9 @@ log_dir ='./logs_MEL'
 
 class MagnaTagATuneSequence(Sequence):
 
-    def __init__(self, train_set_paths, train_set_labels, batch_size, n_fft, sr, hop_length ):
+    def __init__(self, train_set_paths, train_set_labels, batch_size):
         self.paths, self.y = train_set_paths, train_set_labels
         self.batch_size = batch_size
-        self.sr = sr
-        self.n_fft = n_fft
-        self.hop_length = hop_length
 
     def __len__(self):
         return int(np.ceil(len(self.paths) / float(self.batch_size)))
@@ -168,7 +178,7 @@ def find_best_checkpoint(prev_chkpts):
 annotations = pd.read_csv(annotations_path, sep='\t')
 
 tot_t_size = 0.866203
-tot_train_set, test_set = train_test_split(annotations['mp3_path'], train_size=tot_t_size, test_size=(1-tot_t_size), random_state=42) 
+tot_train_set, test_set = train_test_split(annotations, train_size=tot_t_size, test_size=(1-tot_t_size), random_state=42) 
 
 print("Complete Train set size: {}".format(tot_train_set.shape[0]))
 print("Test set size: {} \n".format(test_set.shape[0]))
@@ -179,8 +189,8 @@ train_set, val_set = train_test_split(tot_train_set, train_size=t_size, test_siz
 print("Train set size: {}".format(train_set.shape[0]))
 print("Validation set size: {} \n".format(val_set.shape[0]))
 
-train_set_paths = train_set.values
-train_set_labels = annotations.loc[annotations['mp3_path'].isin(train_set)].drop(columns=['mp3_path','Unnamed: 0']).values
+train_set_paths = train_set['mp3_path'].values
+train_set_labels = train_set.drop(columns=['mp3_path','Unnamed: 0']).values
 
 y_dimension = train_set_labels.shape[1]
 S = pk.load(open(dataset_dir + annotations['mp3_path'][0][:-3]+ 'p','rb'))
@@ -189,8 +199,8 @@ x_dimension = S.shape
 print("X dimension: {}\nY dimension: {} \n".format(x_dimension, y_dimension))
 
    
-val_set_paths = val_set.values
-val_set_labels = annotations.loc[annotations['mp3_path'].isin(val_set)].drop(columns=['mp3_path','Unnamed: 0']).values
+val_set_paths = val_set['mp3_path'].values
+val_set_labels = val_set.drop(columns=['mp3_path','Unnamed: 0']).values
     
 
     
@@ -202,6 +212,24 @@ for value in tqdm(val_set_paths):
     S = pk.load(open(path,'rb'))
     val_set_data.append(S)  
 val_set_data = np.array(val_set_data)[:,:,:,np.newaxis] 
+
+
+# In[ ]:
+
+
+#pick up random song in training
+#np.random.seed(0)
+random_song = np.random.randint(0,train_set.shape[0],)
+song_path = train_set.iloc[random_song]['mp3_path']
+print('Tot train set shape(df): {}'.format(train_set.shape))
+print('Tot train set paths: {}'.format(train_set_paths.shape))
+print('Song from train set (df): {}'.format(train_set.iloc[random_song]['mp3_path']))
+print('Song from train set paths: {}'.format(train_set_paths[random_song]))
+
+labels_from_annotation = annotations.loc[annotations['mp3_path'] == song_path]
+print(labels_from_annotation.values[0][1:-1])
+
+print(train_set_labels[random_song])
 
 
 # ###### Modify session
@@ -362,7 +390,7 @@ while (initial_epoch <= max_epochs) and (training_nr <= max_trainings):
     
     parallel_model.compile(optimizer=optimizer, loss='binary_crossentropy')
     
-    parallel_model.fit_generator(MagnaTagATuneSequence(train_set_paths, train_set_labels, batch_size, n_fft=n_sample_fft, sr=sr, hop_length=hop_length),
+    parallel_model.fit_generator(MagnaTagATuneSequence(train_set_paths, train_set_labels, batch_size),
                                  validation_data = (val_set_data, val_set_labels),
                                  epochs=max_epochs, callbacks = callbacks, initial_epoch = initial_epoch)
 
@@ -372,18 +400,11 @@ while (initial_epoch <= max_epochs) and (training_nr <= max_trainings):
 # In[ ]:
 
 
-test_set_paths = test_set.values
-test_set_labels = annotations.loc[annotations['mp3_path'].isin(test_set)].drop(columns=['mp3_path','Unnamed: 0']).values
+test_set_paths = test_set['mp3_path'].values
+test_set_labels = test_set.drop(columns=['mp3_path','Unnamed: 0']).values
 test_set_size = len(test_set_paths)
 print("Test set size: {} ".format(test_set_size))
 
-
-# test_set_data = []
-# for value in tqdm(test_set_paths):
-#     path = '../data/MagnaTagATune/rawwav_2/'+value[:-3]+'wav'
-#     _, data = wavfile.read(path)
-#     test_set_data.append(data)  
-# test_set_data = np.array(test_set_data)[:,:,np.newaxis]  
 
 # ###### Load best Model
 
@@ -402,7 +423,7 @@ parallel_model = keras.utils.multi_gpu_model(model, gpus=n_gpus)
 # In[ ]:
 
 
-predictions = parallel_model.predict_generator(MagnaTagATuneSequence(test_set_paths, test_set_labels, batch_size, n_fft=n_sample_fft, sr=sr, hop_length=hop_length), verbose=1)
+predictions = parallel_model.predict_generator(MagnaTagATuneSequence(test_set_paths, test_set_labels, batch_size), verbose=1)
 #predictions = parallel_model.predict(test_set_data,batch_size=batch_size,verbose=1)
 
 
@@ -412,8 +433,8 @@ predictions = parallel_model.predict_generator(MagnaTagATuneSequence(test_set_pa
 try:
     roc_auc = roc_auc_score(test_set_labels, predictions)
     print("Test roc auc result: {} ".format(roc_auc))
-except ValueError:
-    print('ERROR ON TEST ROC')
+except Error as e:
+    print(e)
 
 
 # In[ ]:
