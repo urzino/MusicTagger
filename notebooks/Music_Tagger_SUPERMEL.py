@@ -52,7 +52,7 @@ hop_length = 512
 batch_size = 32
 max_epochs = 200
 max_trainings = 5
-kernel_initializer = 'glorot_uniform'#'he_uniform'
+kernel_initializer = 'glorot_uniform'
 
 if batch_size % n_gpus != 0:
     print("Batch size should be dividibile per n_gpus")
@@ -65,15 +65,15 @@ local_decay = 1e-6
 
 # EarlyStopping Parameters
 min_improvement = 0
-patience = 5
+patience = 10
 
 # Paths
 dataset_dir = '../data/MagnaTagATune/MEL_default_hop/'
 annotations_path = '../data/MagnaTagATune/annotation_reduced_50.csv'
 
-checkpoint_dir = './checkpoints_MEL/'
+checkpoint_dir = './checkpoints_MEL_2/'
 checkpoint_file_name = 'weights-{epoch:03d}-{val_loss:.5f}.hdf5'
-log_dir ='./logs_MEL/'
+log_dir ='./logs_MEL_2/'
 
 
 # # Functions
