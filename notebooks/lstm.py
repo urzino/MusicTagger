@@ -3,7 +3,7 @@
 
 # # Imports
 
-# In[ ]:
+# In[311]:
 
 
 import keras
@@ -27,7 +27,7 @@ import random
 import librosa
 import pickle as pk
 
-from keras.layers import Conv2D, MaxPool2D, Activation, Dense, Input, Flatten, BatchNormalization, Dropout, LSTM, TimeDistributed
+from keras.layers import Bidirectional, Activation, Dense, Input, Dropout, LSTM, Flatten, Input, MaxPool1D, Conv1D
 from keras.losses import binary_crossentropy
 from keras.optimizers import SGD
 from keras.utils import Sequence
@@ -37,7 +37,7 @@ import tensorflow as tf
 
 # ###### Parameters
 
-# In[ ]:
+# In[312]:
 
 
 #Hardware Parameters
@@ -49,7 +49,7 @@ n_sample_fft = 2048
 hop_length = 512
 
 #Training Parameters
-batch_size = 32
+batch_size = 256 
 max_epochs = 200
 max_trainings = 5
 kernel_initializer = 'glorot_uniform'#'he_uniform'
@@ -80,7 +80,7 @@ log_dir ='./logs_MEL_LSTM/'
 
 # ###### Data reading during training
 
-# In[ ]:
+# In[313]:
 
 
 class MagnaTagATuneSequence(Sequence):
@@ -93,8 +93,8 @@ class MagnaTagATuneSequence(Sequence):
         return int(np.ceil(len(self.paths) / float(self.batch_size)))
 
     def __getitem__(self, idx):
-        batch_x_paths = self.paths[idx*self.batch_size : (idx + 1)*self.batch_size]
-        batch_y = self.y[idx*self.batch_size : (idx + 1)*self.batch_size]
+        batch_x_paths = self.paths[idx * self.batch_size:(idx + 1) * self.batch_size]
+        batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
         batch_x = []
         for value in batch_x_paths:
             path = dataset_dir + value[:-3]+'p'
@@ -106,7 +106,7 @@ class MagnaTagATuneSequence(Sequence):
 
 # ###### Performance Metrics (not used anymore)
 
-# In[ ]:
+# In[314]:
 
 
 def ratio_wrong_over_correct_ones(y_true, y_pred):
@@ -139,7 +139,7 @@ def auc_roc(y_true, y_pred):
 
 # ###### Best checkpoint selection
 
-# In[ ]:
+# In[287]:
 
 
 def find_best_checkpoint(prev_chkpts):
@@ -158,9 +158,9 @@ def find_best_checkpoint(prev_chkpts):
     return best_chkpt, best_epoch
 
 
-# ###### Align dataset split to batch size
+# ##### Align dataset split to batch size
 
-# In[ ]:
+# In[288]:
 
 
 def align_split(split, batch_size, num_songs):
@@ -172,7 +172,7 @@ def align_split(split, batch_size, num_songs):
 
 # ###### Prepare Dataset
 
-# In[ ]:
+# In[289]:
 
 
 to_drop = ['0/american_bach_soloists-j_s__bach__cantatas_volume_v-02-gleichwie_der_regen_und_schnee_vom_himmel_fallt_bwv_18_ii_recitative__gleichwie_der_regen_und_schnee-30-59.mp3',
@@ -197,30 +197,27 @@ to_drop = ['0/american_bach_soloists-j_s__bach__cantatas_volume_v-02-gleichwie_d
           '9/american_baroque-dances_and_suites_of_rameau_and_couperin-25-le_petit_rien_xiveme_ordre_couperin-88-117.mp3']
 
 
-# In[ ]:
+# In[300]:
 
 
 annotations = pd.read_csv(annotations_path, sep='\t')
 
-tot_t_size = align_split(0.9, batch_size, len(annotations))
-tot_train_set, test_set = train_test_split(annotations, train_size=tot_t_size, test_size=(1-tot_t_size), random_state=42) 
+tot_t_size = align_split(0.99, batch_size, len(annotations))
+tot_train_set, test_set = train_test_split(annotations, train_size=tot_t_size, random_state=42) 
 
 print("Complete Train set size: {}".format(tot_train_set.shape[0]))
 print("Test set size: {} \n".format(test_set.shape[0]))
 
 t_size = align_split(0.8, batch_size, tot_train_set.shape[0])
-train_set, val_set = train_test_split(tot_train_set, train_size=t_size, test_size=(1-t_size), random_state=42) 
+train_set, val_set = train_test_split(tot_train_set, train_size=t_size, random_state=42) 
 
 print("Train set size: {}".format(train_set.shape[0]))
 print("Validation set size: {} \n".format(val_set.shape[0]))
 
-'''annotations = annotations.drop(index = annotations.loc[annotations['mp3_path'].isin(to_drop)].index)                                                                                            .reset_index(drop=True)
-train_set = annotations.drop(index = train_set.loc[train_set['mp3_path'].isin(to_drop)].index)\
-                                                                                            .reset_index(drop=True)
-val_set = val_set.drop(index = val_set.loc[val_set['mp3_path'].isin(to_drop)].index)\
-                                                                                            .reset_index(drop=True)
-test_set = test_set.drop(index = test_set.loc[test_set['mp3_path'].isin(to_drop)].index)\
-                                                                                            .reset_index(drop=True)'''
+'''annotations = annotations.drop(index = annotations.loc[annotations['mp3_path'].isin(to_drop)].index.reset_index(drop=True)
+train_set = annotations.drop(index = train_set.loc[train_set['mp3_path'].isin(to_drop)].index.reset_index(drop=True)
+val_set = val_set.drop(index = val_set.loc[val_set['mp3_path'].isin(to_drop)].index.reset_index(drop=True)
+test_set = test_set.drop(index = test_set.loc[test_set['mp3_path'].isin(to_drop)].index).reset_index(drop=True)'''
 
 train_set_paths = train_set['mp3_path'].values
 train_set_labels = train_set.drop(columns=['mp3_path','Unnamed: 0']).values
@@ -234,9 +231,11 @@ print("X dimension: {}\nY dimension: {} \n".format(x_dimension, y_dimension))
    
 val_set_paths = val_set['mp3_path'].values
 val_set_labels = val_set.drop(columns=['mp3_path','Unnamed: 0']).values
-    
 
-    
+
+# In[301]:
+
+
 print('\n* * * Loading Validation Set into Memory * * *\n')
 
 val_set_data = []
@@ -247,7 +246,7 @@ for value in tqdm(val_set_paths):
 val_set_data = np.array(val_set_data)[:,:,:] 
 
 
-# In[ ]:
+# In[302]:
 
 
 #pick up random song in training
@@ -265,24 +264,12 @@ print(labels_from_annotation.values[0][1:-1])
 print(train_set_labels[random_song])
 
 
-# In[ ]:
-
-
-S = pk.load(open('../data/MagnaTagATune/MEL_default_hop/' + song_path[:-3] + 'p','rb'))
-
-
-# In[ ]:
-
-
-S.T[0]
-
-
 # ###### Modify session
 
-# In[ ]:
+# In[303]:
 
 
-keras.backend.clear_session()
+K.clear_session()
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 session = tf.Session(config=config)
@@ -291,23 +278,24 @@ keras.backend.set_session(session)
 
 # ######  Building Model
 
-# In[ ]:
+# In[304]:
 
 
-n_filters = 50
+n_filters = 100
 
 model = keras.Sequential()
-
-model.add(LSTM(n_filters, return_sequences=True, input_shape=(x_dimension[1],x_dimension[0])))
-model.add(LSTM(n_filters, return_sequences=True))
-model.add(LSTM(n_filters, return_sequences=True))
-
-model.add(Dropout(0.3))
+model.add(Bidirectional(LSTM(n_filters, return_sequences=True), input_shape=(x_dimension[1],x_dimension[0])))
+model.add(Bidirectional(LSTM(n_filters, return_sequences=True)))
+model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu'))
+model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu'))
+model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu'))
+model.add(MaxPool1D(2))
 model.add(Flatten())
+model.add(Dropout(0.3))
 model.add(Dense(units=y_dimension, activation='sigmoid'))
 
 
-# In[ ]:
+# In[305]:
 
 
 model.summary()
@@ -315,7 +303,7 @@ model.summary()
 
 # ###### Callbacks definition
 
-# In[ ]:
+# In[306]:
 
 
 class MyCallBack(keras.callbacks.Callback):
@@ -377,7 +365,7 @@ callbacks = [cbk,cbk_es,cbk2]
 
 # ### Training
 
-# In[ ]:
+# In[307]:
 
 
 initial_epoch = 0
@@ -435,7 +423,7 @@ print("Test set size: {} ".format(test_set_size))
 
 # ###### Load best Model
 
-# In[ ]:
+# In[308]:
 
 
 previous_checkpoints = os.listdir(checkpoint_dir)
@@ -443,6 +431,12 @@ best_checkpoint, best_epoch = find_best_checkpoint(previous_checkpoints)
 #model.load_weights(checkpoint_dir + best_checkpoint)
 model = keras.models.load_model(checkpoint_dir + best_checkpoint)
 parallel_model = keras.utils.multi_gpu_model(model, gpus=n_gpus)
+
+
+# In[310]:
+
+
+model.get_weights()
 
 
 # ###### Prediction and evaluation
