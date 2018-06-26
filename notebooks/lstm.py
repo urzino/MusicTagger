@@ -208,7 +208,7 @@ tot_train_set, test_set = train_test_split(annotations, train_size=tot_t_size, r
 print("Complete Train set size: {}".format(tot_train_set.shape[0]))
 print("Test set size: {} \n".format(test_set.shape[0]))
 
-t_size = align_split(0.8, batch_size, tot_train_set.shape[0])
+t_size = align_split(0.95, batch_size, tot_train_set.shape[0])
 train_set, val_set = train_test_split(tot_train_set, train_size=t_size, random_state=42) 
 
 print("Train set size: {}".format(train_set.shape[0]))
