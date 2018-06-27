@@ -49,7 +49,7 @@ n_sample_fft = 2048
 hop_length = 512
 
 #Training Parameters
-batch_size = 256 
+batch_size = 512 
 max_epochs = 200
 max_trainings = 5
 kernel_initializer = 'glorot_uniform'#'he_uniform'
@@ -65,7 +65,7 @@ local_decay = 1e-6
 
 # EarlyStopping Parameters
 min_improvement = 0
-patience = 10
+patience = 7 
 
 # Paths
 dataset_dir = '../data/MagnaTagATune/MEL_LSTM/'
@@ -286,12 +286,12 @@ n_filters = 100
 model = keras.Sequential()
 model.add(Bidirectional(LSTM(n_filters, return_sequences=True), input_shape=(x_dimension[1],x_dimension[0])))
 model.add(Bidirectional(LSTM(n_filters, return_sequences=True)))
+model.add(Bidirectional(LSTM(n_filters, return_sequences=True)))
 model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu'))
 model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu'))
 model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu'))
-model.add(MaxPool1D(2))
 model.add(Flatten())
-model.add(Dropout(0.3))
+model.add(Dropout(0.4))
 model.add(Dense(units=y_dimension, activation='sigmoid'))
 
 
