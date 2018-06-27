@@ -344,7 +344,7 @@ callbacks = [cbk,cbk_es,cbk2]
 
 
 initial_epoch = 0
-training_nr = 0
+training_nr = 4
 
 parallel_model = keras.utils.multi_gpu_model(model, gpus=n_gpus)
 
