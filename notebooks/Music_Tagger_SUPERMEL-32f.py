@@ -68,12 +68,12 @@ min_improvement = 0
 patience = 10
 
 # Paths
-dataset_dir = '../data/MagnaTagATune/MEL_LSTM/'
+dataset_dir = '../data/MagnaTagATune/MEL_LSTM_V2/'
 annotations_path = '../data/MagnaTagATune/annotation_reduced_50.csv'
 
-checkpoint_dir = './checkpoints_MEL_32f_V2/'
+checkpoint_dir = './checkpoints_MEL_32f_V3/'
 checkpoint_file_name = 'weights-{epoch:03d}-{val_loss:.5f}.hdf5'
-log_dir ='./logs_MEL_32f_V2/'
+log_dir ='./logs_MEL_32f_V3/'
 
 
 # # Functions

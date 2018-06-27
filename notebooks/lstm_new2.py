@@ -284,14 +284,14 @@ keras.backend.set_session(session)
 n_filters = 100
 
 model = keras.Sequential()
-model.add(Bidirectional(LSTM(n_filters, return_sequences=True), input_shape=(x_dimension[1],x_dimension[0])))
-model.add(Bidirectional(LSTM(n_filters, return_sequences=True)))
-model.add(Bidirectional(LSTM(n_filters, return_sequences=True)))
+model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu', input_shape=(x_dimension[1],x_dimension[0])))
 model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu'))
+model.add(Bidirectional(LSTM(n_filters, return_sequences=True)))
+model.add(Bidirectional(LSTM(n_filters, return_sequences=True)))
 model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu'))
 model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu'))
 model.add(Flatten())
-#model.add(Dropout(0.4))
+model.add(Dropout(0.4))
 model.add(Dense(units=y_dimension, activation='sigmoid'))
 
 
