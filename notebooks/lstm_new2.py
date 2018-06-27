@@ -291,7 +291,7 @@ model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu'))
 model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu'))
 model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu'))
 model.add(Flatten())
-model.add(Dropout(0.4))
+#model.add(Dropout(0.4))
 model.add(Dense(units=y_dimension, activation='sigmoid'))
 
 
