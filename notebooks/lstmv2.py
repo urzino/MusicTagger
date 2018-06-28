@@ -49,9 +49,10 @@ n_sample_fft = 2048
 hop_length = 512
 
 #Training Parameters
-batch_size = 1024
-max_epochs = 300
-max_trainings = 6
+n_splits = 4
+batch_size = 512 
+max_epochs = 200
+max_trainings = 5
 kernel_initializer = 'glorot_uniform'#'he_uniform'
 
 if batch_size % n_gpus != 0:
@@ -64,11 +65,11 @@ global_decay = 0.2
 local_decay = 1e-6
 
 # EarlyStopping Parameters
-min_improvement = 1e-3
+min_improvement = 0
 patience = 10
 
 # Paths
-dataset_dir = '../data/MagnaTagATune/MEL_LSTM/'
+dataset_dir = '../data/MagnaTagATune/MEL_default_hop/'
 annotations_path = '../data/MagnaTagATune/annotation_reduced_50.csv'
 
 checkpoint_dir = './checkpoints_MEL_LSTM_V2/'
@@ -85,9 +86,16 @@ log_dir ='./logs_MEL_LSTM_v2/'
 
 class MagnaTagATuneSequence(Sequence):
 
-    def __init__(self, train_set_paths, train_set_labels, batch_size):
+    def __init__(self, train_set_paths, train_set_labels, batch_size, n_splits):
         self.paths, self.y = train_set_paths, train_set_labels
         self.batch_size = batch_size
+        
+        path = dataset_dir + self.paths[0][:-3]+'p'
+        S = pk.load(open(path,'rb'))
+        timestamps = S.shape[1]
+        self.n_splits = n_splits
+        self.split_size = int(timestamps/n_splits)
+        #print(self.split_size)
 
     def __len__(self):
         return int(np.ceil(len(self.paths) / float(self.batch_size)))
@@ -99,12 +107,21 @@ class MagnaTagATuneSequence(Sequence):
         for value in batch_x_paths:
             path = dataset_dir + value[:-3]+'p'
             S = pk.load(open(path,'rb'))
-            batch_x.append(S.T)
-        batch_x = np.array(batch_x)[:,:,:]        
+            #print(S)
+            for split in range(1,(self.n_splits+1)):
+                #print("split {}".format(split))
+                splitmat = S.T[ (split-1)*self.split_size : split*self.split_size]
+                #print("split {}: \n{}".format(split,splitmat))
+                batch_x.append(splitmat)
+        batch_x = np.array(batch_x)[:,:,:]
+        batch_y = np.repeat(batch_y, self.n_splits, axis=0)
         return (batch_x,batch_y)    
 
 
-# ###### Performance Metrics (not used anymore)
+# In[ ]:
+
+
+# # Performance Metrics (not used anymore)
 
 # In[ ]:
 
@@ -198,20 +215,35 @@ x_dimension = S.shape
 
 print("X dimension: {}\nY dimension: {} \n".format(x_dimension, y_dimension))
 
-   
+
+# In[ ]:
+
+
 val_set_paths = val_set['mp3_path'].values
 val_set_labels = val_set.drop(columns=['mp3_path','Unnamed: 0']).values
-    
 
     
 print('\n* * * Loading Validation Set into Memory * * *\n')
 
 val_set_data = []
+path = dataset_dir+val_set_paths[0][:-3]+'p'
+S = pk.load(open(path,'rb'))
+timestamps = S.shape[1]
+split_size = int(timestamps/n_splits)
 for value in tqdm(val_set_paths):
     path = dataset_dir+value[:-3]+'p'
     S = pk.load(open(path,'rb'))
-    val_set_data.append(S.T)  
+    for split in range(1,n_splits+1):
+        splitmat = S.T[ (split-1)*split_size : split*split_size]
+        val_set_data.append(splitmat)  
 val_set_data = np.array(val_set_data)[:,:,:] 
+val_set_labels = np.repeat(val_set_labels, n_splits, axis=0)
+
+
+# In[ ]:
+
+
+list(range(1,n_splits))
 
 
 # In[ ]:
@@ -252,7 +284,7 @@ keras.backend.set_session(session)
 n_filters = 100
 
 model = keras.Sequential()
-model.add(Bidirectional(LSTM(n_filters, return_sequences=True), input_shape=(x_dimension[1],x_dimension[0])))
+model.add(Bidirectional(LSTM(n_filters, return_sequences=True), input_shape=(int(x_dimension[1]/n_splits),x_dimension[0])))
 model.add(Bidirectional(LSTM(n_filters, return_sequences=True)))
 model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu'))
 model.add(Conv1D(filters=50,kernel_size=3,strides=1,activation='relu'))
@@ -372,7 +404,7 @@ while (initial_epoch <= max_epochs) and (training_nr <= max_trainings):
     
     parallel_model.compile(optimizer=optimizer, loss='binary_crossentropy')
     
-    parallel_model.fit_generator(MagnaTagATuneSequence(train_set_paths, train_set_labels, batch_size),
+    parallel_model.fit_generator(MagnaTagATuneSequence(train_set_paths, train_set_labels, batch_size, n_splits),
                                  validation_data = (val_set_data, val_set_labels),
                                  epochs=max_epochs, callbacks = callbacks, initial_epoch = initial_epoch)
 
@@ -411,7 +443,7 @@ model.get_weights()
 # In[ ]:
 
 
-predictions = parallel_model.predict_generator(MagnaTagATuneSequence(test_set_paths, test_set_labels, batch_size), verbose=1)
+predictions = parallel_model.predict_generator(MagnaTagATuneSequence(test_set_paths, test_set_labels, batch_size, n_splits), verbose=1)
 #predictions = parallel_model.predict(test_set_data,batch_size=batch_size,verbose=1)
 
 
