@@ -3,7 +3,7 @@
 
 # # Imports
 
-# In[1]:
+# In[ ]:
 
 
 import keras
@@ -37,7 +37,7 @@ import tensorflow as tf
 
 # ###### Parameters
 
-# In[3]:
+# In[ ]:
 
 
 #Hardware Parameters
@@ -68,29 +68,19 @@ min_improvement = 0
 patience = 10
 
 # Paths
-dataset_dir = '../data/MagnaTagATune/MEL_default_hop/'
+dataset_dir = '../data/MagnaTagATune/MEL_LSTM_V2/'
 annotations_path = '../data/MagnaTagATune/annotation_reduced_50.csv'
 
-checkpoint_dir = './checkpoints_MEL_32f/'
+checkpoint_dir = './checkpoints_MEL_32f_V3/'
 checkpoint_file_name = 'weights-{epoch:03d}-{val_loss:.5f}.hdf5'
-log_dir ='./logs_MEL_32f/'
+log_dir ='./logs_MEL_32f_V3/'
 
 
 # # Functions
 
-# ###### Align dataset split to batch size
-
-# In[4]:
-
-
-def align_split(split, batch_size, num_songs):
-    num_songs_split = split*num_songs
-    return int(num_songs_split - num_songs_split%batch_size)/num_songs
-
-
 # ###### Data reading during training
 
-# In[5]:
+# In[ ]:
 
 
 class MagnaTagATuneSequence(Sequence):
@@ -116,7 +106,7 @@ class MagnaTagATuneSequence(Sequence):
 
 # ###### Performance Metrics (not used anymore)
 
-# In[6]:
+# In[ ]:
 
 
 def ratio_wrong_over_correct_ones(y_true, y_pred):
@@ -149,7 +139,7 @@ def auc_roc(y_true, y_pred):
 
 # ###### Best checkpoint selection
 
-# In[7]:
+# In[ ]:
 
 
 def find_best_checkpoint(prev_chkpts):
@@ -172,7 +162,7 @@ def find_best_checkpoint(prev_chkpts):
 
 # ###### Prepare Dataset
 
-# In[8]:
+# In[ ]:
 
 
 annotations = pd.read_csv(annotations_path, sep='\t')
@@ -214,7 +204,7 @@ for value in tqdm(val_set_paths):
 val_set_data = np.array(val_set_data)[:,:,:,np.newaxis] 
 
 
-# In[9]:
+# In[ ]:
 
 
 #pick up random song in training
@@ -234,7 +224,7 @@ print(train_set_labels[random_song])
 
 # ###### Modify session
 
-# In[10]:
+# In[ ]:
 
 
 config = tf.ConfigProto()
@@ -245,7 +235,7 @@ keras.backend.set_session(session)
 
 # ######  Building Model
 
-# In[11]:
+# In[ ]:
 
 
 n_filters = 32
@@ -280,7 +270,7 @@ model.add(Flatten())
 model.add(Dense(units=y_dimension, activation='sigmoid'))
 
 
-# In[12]:
+# In[ ]:
 
 
 model.summary()
@@ -288,7 +278,7 @@ model.summary()
 
 # ###### Callbacks definition
 
-# In[13]:
+# In[ ]:
 
 
 class MyCallBack(keras.callbacks.Callback):
@@ -350,11 +340,11 @@ callbacks = [cbk,cbk_es,cbk2]
 
 # ### Training
 
-# In[14]:
+# In[ ]:
 
 
 initial_epoch = 0
-training_nr = 0
+training_nr = 4
 
 parallel_model = keras.utils.multi_gpu_model(model, gpus=n_gpus)
 
