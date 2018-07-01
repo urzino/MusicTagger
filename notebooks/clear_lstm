@@ -1,2 +1,0 @@
-rm -r checkpoints_MEL_LSTM_V2/
-rm -r logs_MEL_LSTM_v2/

@@ -1,1 +1,0 @@
-C:\Users\leled\ffmpeg\bin\ffmpeg.exe -i %1 -ac 1 -ar 16000 -t 29.124 -ss 00:01:20 C:\Users\leled\Desktop\wav\despacito.wav
